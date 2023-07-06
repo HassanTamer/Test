@@ -1,0 +1,286 @@
+
+ASEM-51 V1.3                                         Copyright (c) 2002 by W.W. Heinz                                         PAGE 1
+
+
+
+
+
+       MCS-51 Family Macro Assembler   A S E M - 5 1   V 1.3
+       =====================================================
+
+
+
+	Source File:	..\main.asm
+	Object File:	Debug.HEX
+	List File:	Debug.lst
+
+
+
+ Line  I  Addr  Code            Source
+
+    1:		N      0000				ORG 0000H
+    2:
+    3:	  0000	01 21					AJMP MAIN
+    4:
+    5:		N      0003				ORG 0003H
+    6:	  0003	B8 09 03				CJNE R0,#9,CON0			;R=9 is max speed
+    7:	  0006	02 00 10				JMP NO0					;jump to reti if max speed and don't
+				 increase it
+    8:	  0009	08			CON0:	INC R0					;R0 is our speed counter - min = 0 , max = 9
+    9:	  000A	88 80					MOV P0,R0				;display the speed on p0
+   10:	  000C	D2 90					SETB P1.0				; stop the motor for a moment
+   11:	  000E	11 87					ACALL DELAY				; delay for bouncing
+   12:	  0010	32			NO0:	RETI
+   13:
+   14:		N      0013				ORG 0013H
+   15:	  0013	B8 FF 03				CJNE R0,#0FFH,CON1    ;R0 is min speed
+   16:	  0016	02 00 20				JMP NO1				  ; jump to reti if speed is minimum
+   17:	  0019	18			CON1:	DEC R0
+   18:	  001A	88 80					MOV P0,R0
+   19:	  001C	D2 90					SETB P1.0
+   20:	  001E	11 87					ACALL DELAY
+   21:	  0020	32			NO1:	RETI
+   22:
+   23:
+   24:	  0021						MAIN:
+   25:	  0021			SETUP:
+   26:	  0021	75 80 FF				MOV P0,#0FFH		;display ...=R0
+   27:	  0024	75 90 FF				MOV P1,#0FFH		;Optocoupler
+   28:	  0027	75 A0 FF				MOV P2,#0FFH		;Emergency switch
+   29:	  002A	78 FF					MOV R0,#0FFH		;Speed Counter
+   30:	  002C	E8					MOV A,R0
+   31:	  002D	D2 88					SETB TCON.0			;Edge triggered inturrepts
+   32:	  002F	D2 8A					SETB TCON.2
+   33:	  0031	75 89 01				MOV TMOD ,#01H		;Activiating timer T0
+   34:	  0034	75 A8 85				MOV IE,#85H			;Activating external interrupts
+   35:	  0037	30 A0 0C		HERE:	JNB P2.0,STOP		;Emergency swtich connected to p2.0 , stops the motor if swi
+				tch is close
+   36:	  003A	B8 FF 05				CJNE R0,#0FFH,GO	;if R0 is not FF jump to rotate the motor otherwise
+				the motor is not rotating
+   37:	  003D	75 90 FF				MOV P1,#0FFH		;stop the motor
+   38:	  0040	80 F5					JMP HERE			;check r0 again
+   39:	  0042	11 4E			GO:		ACALL LOOP
+   40:	  0044	80 F1					JMP HERE
+
+ASEM-51 V1.3                                         Copyright (c) 2002 by W.W. Heinz                                         PAGE 2
+
+
+
+ Line  I  Addr  Code            Source
+
+   41:	  0046	75 90 FF		STOP:	MOV P1,#0FFH		; stop the motor if the emergency switch is closed
+   42:	  0049	20 A0 EB				JB P2.0,HERE		;if the switch is open operate the motor noramlly
+   43:	  004C	80 F8					JMP STOP
+   44:
+   45:
+   46:	  004E				LOOP :
+   47:	  004E	E8					MOV A ,R0			;Moving the counter to Acc to use the Acc to
+				 access ROM below
+   48:	  004F	C2 90					CLR P1.0
+   49:	  0051	11 59					ACALL ON			; the delay of the ON duty cycle
+   50:	  0053	E8					MOV A,R0
+   51:	  0054	D2 90					SETB P1.0
+   52:	  0056	11 70					ACALL OFF			; the delay of the OFF duty cycle
+   53:	  0058	22					RET
+   54:
+   55:
+   56:	  0059						ON:
+   57:	  0059	90 05 00				MOV DPTR,#500H		; the ON duty cycele High bits of the timer stored a
+				t 500H
+   58:	  005C	93					MOVC A,@A+DPTR
+   59:	  005D	F5 8C					MOV TH0,A
+   60:	  005F	E8					MOV A,R0
+   61:	  0060	90 05 50				MOV DPTR,#550H		;The lower bits of the ON cycle timer stored at 550H
+   62:	  0063	93					MOVC A,@A+DPTR
+   63:	  0064	F5 8A					MOV TL0,A
+   64:	  0066	D2 8C					SETB TR0
+   65:	  0068	30 8D FD				HERE1:JNB TF0,HERE1
+   66:	  006B	C2 8C					CLR TR0
+   67:	  006D	C2 8D					CLR TF0
+   68:	  006F	22					RET
+   69:
+   70:
+   71:
+   72:
+   73:	  0070						OFF:
+   74:	  0070	90 06 00				MOV DPTR,#600H		;The OFF duty cycle timer high bits stored at 600H
+   75:	  0073	93					MOVC A,@A+DPTR
+   76:	  0074	F5 8C					MOV TH0,A
+   77:	  0076	E8					MOV A,R0
+   78:	  0077	90 06 50				MOV DPTR,#650H		;	Lower bits at 650H
+   79:	  007A	93					MOVC A,@A+DPTR
+   80:	  007B	F5 8A					MOV TL0,A
+   81:	  007D	D2 8C					SETB TR0
+   82:	  007F	30 8D FD				HERE2:JNB TF0,HERE2
+   83:	  0082	C2 8C					CLR TR0
+   84:	  0084	C2 8D					CLR TF0
+   85:	  0086	22					RET
+   86:
+   87:	  0087						DELAY:				;Delay for bouncing
+   88:	  0087	79 FA					MOV R1,#250
+   89:	  0089					D11:
+   90:	  0089	7A FA					MOV R2,#250
+   91:	  008B					D12:
+   92:	  008B	7B 08					MOV R3,#8
+   93:	  008D					D13:
+   94:	  008D	DB FE					DJNZ R3,D13
+
+ASEM-51 V1.3                                         Copyright (c) 2002 by W.W. Heinz                                         PAGE 3
+
+
+
+ Line  I  Addr  Code            Source
+
+   95:	  008F	DA FA					DJNZ R2,D12
+   96:	  0091	D9 F6					DJNZ R1,D11
+   97:	  0093	22					RET
+   98:
+   99:												; Cycles data...
+  100:		N      0500									ORG 0500H
+
+  101:	  0500	FF FF FF FF		ONV1 :   DB 0FFH,0FFH,0FFH,0FFH,0FFH,0FFH,0FFH,0FFH,0FFH,0FFH
+	  0504	FF FF FF FF
+	  0508	FF FF
+  102:
+  103:		N      0550				ORG 0550H
+  104:	  0550	E7 CE B5 9C		ONV2 :	 DB 0E7H,0CEH,0B5H,09CH,083H,06AH,051H,038H,01FH,06H
+	  0554	83 6A 51 38
+	  0558	1F 06
+  105:
+  106:
+  107:		N      0600				ORG 0600H
+  108:	  0600	FE FE FE FE		OFFV1:	DB 0FEH,0FEH,0FEH,0FEH,0FEH,0FEH,0FEH,0FEH,0FEH,0FFH
+	  0604	FE FE FE FE
+	  0608	FE FF
+  109:
+  110:
+  111:		N      0650				ORG 0650H
+  112:	  0650	25 3E 57 70		OFFV2:	DB 025H,03EH,057H,070H,089H,0A2H,0BBH,0D4H,0EDH,06H
+	  0654	89 A2 BB D4
+	  0658	ED 06
+  113:
+  114:							END
+
+
+
+
+
+                     register banks used:  ---
+
+                     no errors
+
+
+
+
+ASEM-51 V1.3                                         Copyright (c) 2002 by W.W. Heinz                                         PAGE 4
+
+
+
+
+
+	       L I S T   O F   S Y M B O L S
+	       =============================
+
+
+SYMBOL				  TYPE     VALUE	LINE
+------------------------------------------------------------
+??ASEM_51			  NUMBER    8051
+??VERSION			  NUMBER    0130
+AC				  BIT	      D6
+ACC				  DATA	      E0
+B				  DATA	      F0
+CON0				  CODE	    0009	   8
+CON1				  CODE	    0019	  17
+CY				  BIT	      D7
+D11				  CODE	    0089	  89
+D12				  CODE	    008B	  91
+D13				  CODE	    008D	  93
+DELAY				  CODE	    0087	  87
+DPH				  DATA	      83
+DPL				  DATA	      82
+EA				  BIT	      AF
+ES				  BIT	      AC
+ET0				  BIT	      A9
+ET1				  BIT	      AB
+EX0				  BIT	      A8
+EX1				  BIT	      AA
+EXTI0				  CODE	    0003
+EXTI1				  CODE	    0013
+F0				  BIT	      D5
+GO				  CODE	    0042	  39
+HERE				  CODE	    0037	  35
+HERE1				  CODE	    0068	  65
+HERE2				  CODE	    007F	  82
+IE				  DATA	      A8
+IE0				  BIT	      89
+IE1				  BIT	      8B
+INT0				  BIT	      B2
+INT1				  BIT	      B3
+IP				  DATA	      B8
+IT0				  BIT	      88
+IT1				  BIT	      8A
+LOOP				  CODE	    004E	  46
+MAIN				  CODE	    0021	  24
+NO0				  CODE	    0010	  12
+NO1				  CODE	    0020	  21
+OFF				  CODE	    0070	  73
+OFFV1				  CODE	    0600	 108
+OFFV2				  CODE	    0650	 112
+ON				  CODE	    0059	  56
+ONV1				  CODE	    0500	 101
+ONV2				  CODE	    0550	 104
+OV				  BIT	      D2
+P				  BIT	      D0
+P0				  DATA	      80
+P1				  DATA	      90
+P2				  DATA	      A0
+
+ASEM-51 V1.3                                         Copyright (c) 2002 by W.W. Heinz                                         PAGE 5
+
+
+
+SYMBOL				  TYPE     VALUE	LINE
+------------------------------------------------------------
+P3				  DATA	      B0
+PCON				  DATA	      87
+PS				  BIT	      BC
+PSW				  DATA	      D0
+PT0				  BIT	      B9
+PT1				  BIT	      BB
+PX0				  BIT	      B8
+PX1				  BIT	      BA
+RB8				  BIT	      9A
+RD				  BIT	      B7
+REN				  BIT	      9C
+RESET				  CODE	    0000
+RI				  BIT	      98
+RS0				  BIT	      D3
+RS1				  BIT	      D4
+RXD				  BIT	      B0
+SBUF				  DATA	      99
+SCON				  DATA	      98
+SETUP				  CODE	    0021	  25
+SINT				  CODE	    0023
+SM0				  BIT	      9F
+SM1				  BIT	      9E
+SM2				  BIT	      9D
+SP				  DATA	      81
+STOP				  CODE	    0046	  41
+T0				  BIT	      B4
+T1				  BIT	      B5
+TB8				  BIT	      9B
+TCON				  DATA	      88
+TF0				  BIT	      8D
+TF1				  BIT	      8F
+TH0				  DATA	      8C
+TH1				  DATA	      8D
+TI				  BIT	      99
+TIMER0				  CODE	    000B
+TIMER1				  CODE	    001B
+TL0				  DATA	      8A
+TL1				  DATA	      8B
+TMOD				  DATA	      89
+TR0				  BIT	      8C
+TR1				  BIT	      8E
+TXD				  BIT	      B1
+WR				  BIT	      B6
